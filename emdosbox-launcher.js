@@ -1,19 +1,7 @@
 var ar = new Array(33,34,35,36,37,38,39,40);
 
-function getfullscreenenabler() {
-  return canvas.webkitRequestFullScreen || canvas.mozRequestFullScreen || canvas.requestFullScreen;
-}
-
 function getpointerlockenabler() {
   return canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
-}
-
-function isfullscreensupported() {
-   return !!(getfullscreenenabler());
-}
-
-function gofullscreen() {
-  Module.requestFullScreen(1,0);
 }
 
 function keypress(e) {
@@ -47,19 +35,6 @@ window.onkeydown = keypress;
   }
 
   function ready() {
-    var fullscreenbutton = document.getElementById('gofullscreen');
-    if (isfullscreensupported()) {
-      fullscreenbutton.addEventListener('click', gofullscreen);
-      if ('onfullscreenchange' in document) {
-        document.addEventListener('fullscreenchange', DOSBOX.fullScreenChangeHandler);
-      } else if ('onmozfullscreenchange' in document) {
-        document.addEventListener('mozfullscreenchange', DOSBOX.fullScreenChangeHandler);
-      } else if ('onwebkitfullscreenchange' in document) {
-        document.addEventListener('webkitfullscreenchange', DOSBOX.fullScreenChangeHandler);
-      }
-    } else {
-      fullscreenbutton.disabled = true;
-    }
     var canvas = document.getElementById('canvas');
     emulator = new DOSBOX(canvas).setscale(get('scale') ? parseFloat(get('scale')) : 1)
                                  .setgame(loader_game === 'NONE' ? null

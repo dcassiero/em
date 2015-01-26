@@ -963,6 +963,25 @@ var Module = null;
 
 (function (Promise) {
    function DOSBOX(canvas, module, game, precallback, callback, scale) {
+     var self = this;
+     if (this === window) {
+         self = {};
+     }
+
+     var gofullscreen = document.getElementById("gofullscreen");
+     gofullscreen.disabled = true;
+
+     function requestFullScreen () {
+       // enlarge the canvas and go to full screen mode
+       if (typeof JSEvents !== 'undefined') {
+         JSEvents.requestFullscreen(canvas, { scaleMode: 2, filteringMode: 1, canvasResolutionScaleMode: 0 });
+       }
+     }
+
+     if (fullscreenAvailable()) {
+       gofullscreen.addEventListener('click', requestFullScreen);
+     }
+
      var js_url;
      var requests = [];
      var drawloadingtimer;
@@ -986,29 +1005,29 @@ var Module = null;
        return sample.sampleRate.toString();
      }());
 
-     this.setscale = function(_scale) {
+     self.setscale = function(_scale) {
        scale = _scale;
-       return this;
+       return self;
      };
 
-     this.setprecallback = function(_precallback) {
+     self.setprecallback = function(_precallback) {
        precallback = _precallback;
-       return this;
+       return self;
      };
 
-     this.setcallback = function(_callback) {
+     self.setcallback = function(_callback) {
        callback = _callback;
-       return this;
+       return self;
      };
 
-     this.setmodule = function(_module) {
+     self.setmodule = function(_module) {
        module = _module;
-       return this;
+       return self;
      };
 
-     this.setgame = function(_game) {
+     self.setgame = function(_game) {
        game = _game;
-       return this;
+       return self;
      };
 
      var progress_fetch_file = function (e) {
@@ -1022,8 +1041,6 @@ var Module = null;
          table = document.createElement('table');
          table.setAttribute('id', "dosbox-progress-indicator");
          table.style.position = 'absolute';
-         table.style.top = (canvas.offsetTop + (canvas.height / 2 + splashimg.height / 2) + 16 - (64/2)) +'px';
-         table.style.left = canvas.offsetLeft + (64 + 32) +'px';
          document.documentElement.appendChild(table);
        }
        row = table.insertRow(-1);
@@ -1151,10 +1168,6 @@ var Module = null;
               .then(function (data) {
                       modulecfg = JSON.parse(data);
 
-                      var nr = modulecfg['native_resolution'];
-                      DOSBOX.width = nr[0] * scale;
-                      DOSBOX.height = nr[1] * scale;
-
                       if (precallback) {
                         window.setTimeout(precallback, 0);
                       }
@@ -1222,14 +1235,16 @@ var Module = null;
                       } else {
                         splash.loading_text = 'Non-system disk or disk error';
                       }
+
+                      gofullscreen.disabled = !fullscreenAvailable();
                     },
                     function () {
                       splash.loading_text = 'Invalid media, track 0 bad or unusable';
                       splash.failed_loading = true;
                     });
-       return this;
+       return self;
      };
-     this.start = start;
+     self.start = start;
      window.DOSBOXstart = start;//global hook to method (so can be invoked with a "click to play" image being clicked)
 
      var init_module = function(modulecfg, metadata, game_files) {
@@ -1274,7 +1289,6 @@ var Module = null;
      };
 
      var drawsplash = function () {
-       var context = canvas.getContext('2d');
        splashimg.onload = function (){
          draw_loading_status(0);
          animLoop(draw_loading_status);
@@ -1285,6 +1299,7 @@ var Module = null;
 
      var draw_loading_status = function (deltaT) {
        var context = canvas.getContext('2d');
+       context.setTransform(1, 0, 0, 1, 0, 0);
        context.clearRect(0, 0, canvas.width, canvas.height);
        context.drawImage(splashimg, canvas.width / 2 - (splashimg.width / 2), canvas.height / 3 - (splashimg.height / 2));
 
@@ -1301,8 +1316,12 @@ var Module = null;
        context.fillStyle = 'Black';
        context.textAlign = 'center';
        context.fillText(splash.loading_text, canvas.width / 2, (canvas.height / 2) + (splashimg.height / 4));
-
        context.restore();
+
+       var table = document.getElementById("dosbox-progress-indicator");
+       table.style.position = 'absolute';
+       table.style.top = (canvas.offsetTop + (canvas.height / 2 + splashimg.height / 2) + 16 - (64/2)) +'px';
+       table.style.left = (canvas.offsetLeft + 64 + 32) +'px';
 
        if (splash.finished_loading) {
          document.getElementById("dosbox-progress-indicator").style.display = 'none';
@@ -1322,49 +1341,30 @@ var Module = null;
            head.appendChild(newScript);
          }
      }
-   };
 
-   DOSBOX._readySet = false;
-
-   DOSBOX._readyList = [];
-
-   DOSBOX._runReadies = function() {
-     if (DOSBOX._readyList) {
-       for (var r=0; r < DOSBOX._readyList.length; r++) {
-         DOSBOX._readyList[r].call(window, []);
-       };
-       DOSBOX._readyList = [];
+     function fullscreenAvailable () {
+       return !!(canvas.requestFullscreen ||
+                 canvas.mozRequestFullScreen ||
+                 canvas.mozRequestFullscreen ||
+                 canvas.webkitRequestFullscreen ||
+                 canvas.msRequestFullscreen);
      };
-   };
 
-   DOSBOX._readyCheck = function() {
-     if (DOSBOX.running) {
-       DOSBOX._runReadies();
-     } else {
-       DOSBOX._readySet = setTimeout(DOSBOX._readyCheck, 10);
+     function fullscreenEnabled () {
+       return document.fullscreenEnabled ||
+              document.mozFullscreenEnabled ||
+              document.mozFullScreenEnabled ||
+              document.webkitFullscreenEnabled ||
+              document.msFullscreenEnabled;
      };
-   };
 
-   DOSBOX.ready = function(r) {
-     if (DOSBOX.running) {
-       r.call(window, []);
-     } else {
-       DOSBOX._readyList.push(function() { canvas.style.width = DOSBOX.width + 'px'; canvas.style.height = DOSBOX.height + 'px'; } );
-       if (!(DOSBOX._readySet)) {
-         DOSBOX._readyCheck();
-       }
+     function fullscreenElement () {
+       return document.fullscreenElement ||
+              document.mozFullscreenElement ||
+              document.mozFullScreenElement ||
+              document.webkitFullscreenElement ||
+              document.msFullscreenElement;
      };
-   };
-
-   DOSBOX.setScale = function() {
-     Module.canvas.style.width = DOSBOX.width + 'px';
-     Module.canvas.style.height = DOSBOX.height + 'px';
-   };
-
-   DOSBOX.fullScreenChangeHandler = function() {
-     if (!(document.mozFullScreenElement || document.fullScreenElement)) {
-         setTimeout(DOSBOX.setScale, 0);
-     }
    };
 
    DOSBOX.BFSMountZip = function BFSMount(path, loadedData) {
